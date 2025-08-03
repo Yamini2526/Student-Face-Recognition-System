@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Feed - Dual Camera</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #controls {
+            background-color: #f0f0f0;
+            padding: 10px 20px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        #controls button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .camera-block {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            border-left: 2px solid #ccc;
+        }
+
+        .video-container {
+            position: relative;
+            flex: 1;
+            background: black;
+        }
+
+        .video-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 16px;
+            z-index: 10;
+        }
+
+        .status-container {
+            padding: 15px;
+            height: 40%;
+            overflow-y: auto;
+            background: #f4f4f4;
+        }
+
+        h2 {
+            font-size: 20px;
+            text-align: center;
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 8px;
+            border: 1px solid #aaa;
+            text-align: left;
+        }
+
+        th {
+            background-color: #ddd;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        #reset-button {
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <button onclick="startCamera()">Start Cameras</button>
+    <button onclick="stopCamera()">Stop Cameras</button>
+    <button onclick="startRecording()">Start Recording</button>
+    <button onclick="stopRecording()">Stop Recording</button>
+    <button id="reset-button" onclick="resetTable()">Reset Tables</button>
+</div>
+
+<div id="main-content">
+    <!-- Camera 1 -->
+    <div class="camera-block">
+        <div class="video-container">
+            <img id="live-video1" src="" alt="Live video 1">
+            <div class="overlay" id="overlay1">
+                <div id="student-name1">Student: Not Identified</div>
+                <div id="student-roll1">Roll No: -</div>
+                <div id="student-status1">Timestamp: -</div>
+            </div>
+        </div>
+        <div class="status-container">
+            <h2>Camera 1 Attendance</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Roll Number</th>
+                    <th>Timestamp</th>
+                </tr>
+                </thead>
+                <tbody id="attendance-table1"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Camera 2 -->
+    <div class="camera-block">
+        <div class="video-container">
+            <img id="live-video2" src="" alt="Live video 2">
+            <div class="overlay" id="overlay2">
+                <div id="student-name2">Student: Not Identified</div>
+                <div id="student-roll2">Roll No: -</div>
+                <div id="student-status2">Timestamp: -</div>
+            </div>
+        </div>
+        <div class="status-container">
+            <h2>Camera 2 Attendance</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Roll Number</th>
+                    <th>Timestamp</th>
+                </tr>
+                </thead>
+                <tbody id="attendance-table2"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const addedEntries1 = new Set();
+    const addedEntries2 = new Set();
+
+    function updateOverlay(camId, name, roll, timestamp) {
+        document.getElementById(`student-name${camId}`).textContent = "Student: " + name;
+        document.getElementById(`student-roll${camId}`).textContent = "Roll No: " + roll;
+        document.getElementById(`student-status${camId}`).textContent = "Timestamp: " + timestamp;
+    }
+
+    function addToTable(camId, name, roll, timestamp) {
+        const key = `${name}_${roll}_${timestamp}`;
+        const set = camId === 1 ? addedEntries1 : addedEntries2;
+        if (set.has(key)) return;
+        set.add(key);
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${name}</td>
+            <td>${roll}</td>
+            <td>${timestamp}</td>
+        `;
+        document.getElementById(`attendance-table${camId}`).appendChild(row);
+    }
+
+    function resetTable() {
+        addedEntries1.clear();
+        addedEntries2.clear();
+        document.getElementById("attendance-table1").innerHTML = '';
+        document.getElementById("attendance-table2").innerHTML = '';
+        updateOverlay(1, "Not Identified", "-", "-");
+        updateOverlay(2, "Not Identified", "-", "-");
+    }
+
+    function startCamera() {
+        document.getElementById("live-video1").src = "/video_feed1";
+        document.getElementById("live-video2").src = "/video_feed2";
+    }
+
+    function stopCamera() {
+        document.getElementById("live-video1").src = "";
+        document.getElementById("live-video2").src = "";
+    }
+
+    function startRecording() {
+        [1, 2].forEach(id => {
+            fetch(`/start_recording/${id}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "started") {
+                        alert(`🎥 Camera ${id} recording started: ${data.file}`);
+                    }
+                });
+        });
+    }
+
+    function stopRecording() {
+        [1, 2].forEach(id => {
+            fetch(`/stop_recording/${id}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "stopped") {
+                        alert(`🛑 Camera ${id} recording stopped.`);
+                    }
+                });
+        });
+    }
+
+    setInterval(() => {
+        [1, 2].forEach(camId => {
+            fetch(`/student_info${camId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        data.forEach(student => {
+                            if (student.name && student.roll_number && student.timestamp) {
+                                addToTable(camId, student.name, student.roll_number, student.timestamp);
+                            }
+                        });
+                        if (data.length > 0) {
+                            const latest = data[data.length - 1];
+                            updateOverlay(camId, latest.name, latest.roll_number, latest.timestamp);
+                        }
+                    }
+                });
+        });
+    }, 500);
+</script>
+
+</body>
+</html>
